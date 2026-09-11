@@ -1,0 +1,63 @@
+{
+  "name": "dsh-desktop",
+  "productName": "DeepSeek Harness",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop shell for DeepSeek Harness: wraps the dsh web GUI in Electron and splits the left sidebar into colored workspace / add-folder / sessions zones.",
+  "author": "DeepSeek Harness Desktop",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "dump:dom": "electron scripts/dump-dom.js",
+    "dump:slots": "electron scripts/dump-slots.js",
+    "smoke": "electron scripts/smoke-test.js",
+    "icon": "node scripts/make-icon.js",
+    "assets": "node scripts/make-icon.js && electron scripts/make-background.js selective",
+    "dist": "node scripts/make-icon.js && electron-builder --win portable"
+  },
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "electron",
+    "desktop"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.deepseek.dsh.desktop",
+    "productName": "DeepSeek Harness",
+    "copyright": "DeepSeek Harness Desktop shell",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json",
+      "README.md",
+      "!**/*.map"
+    ],
+    "asar": true,
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "DeepSeek-Harness-${version}-portable.exe",
+      "unicode": true
+    }
+  }
+}

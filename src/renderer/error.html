@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+    <title>DeepSeek Harness — 启动失败</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f9fafb;
+        --card: #ffffff;
+        --fg: #111827;
+        --muted: #6b7280;
+        --line: #e5e7eb;
+        --danger: #dc2626;
+        --accent: #4d6bfe;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #16181d;
+          --card: #1d2026;
+          --fg: #ecedf1;
+          --muted: #9aa1ad;
+          --line: #2c3037;
+        }
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+        box-sizing: border-box;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: -apple-system, "Segoe UI", "Microsoft YaHei", Roboto, sans-serif;
+      }
+      .card {
+        width: min(720px, 100%);
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 24px 26px;
+        box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 18px;
+        color: var(--danger);
+      }
+      p {
+        margin: 0 0 14px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--muted);
+        white-space: pre-wrap;
+      }
+      pre {
+        max-height: 220px;
+        overflow: auto;
+        margin: 0 0 18px;
+        padding: 12px;
+        font-size: 12px;
+        line-height: 1.5;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+      }
+      button {
+        font: inherit;
+        font-size: 13px;
+        padding: 8px 16px;
+        border-radius: 9px;
+        border: 1px solid var(--line);
+        background: transparent;
+        color: var(--fg);
+        cursor: pointer;
+      }
+      button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1 id="title">启动失败</h1>
+      <p id="message"></p>
+      <pre id="log" hidden></pre>
+      <div class="actions">
+        <button class="primary" id="retry">重试</button>
+        <button id="browser">在浏览器中打开</button>
+        <button id="quit">退出</button>
+      </div>
+    </div>
+    <script>
+      const params = new URLSearchParams(location.search)
+      document.getElementById('title').textContent = params.get('title') || '启动失败'
+      document.getElementById('message').textContent = params.get('message') || '未知错误。'
+      const logNode = document.getElementById('log')
+      const logText = params.get('log') || ''
+      if (logText.trim()) {
+        logNode.textContent = logText
+        logNode.hidden = false
+      }
+
+      const retry = document.getElementById('retry')
+      retry.addEventListener('click', async () => {
+        retry.disabled = true
+        retry.textContent = '正在重启…'
+        if (window.dshDesktop) await window.dshDesktop.restartServer()
+        retry.disabled = false
+        retry.textContent = '重试'
+      })
+
+      document.getElementById('browser').addEventListener('click', () => {
+        if (window.dshDesktop) window.dshDesktop.openInBrowser()
+      })
+      document.getElementById('quit').addEventListener('click', () => {
+        window.close()
+      })
+    </script>
+  </body>
+</html>

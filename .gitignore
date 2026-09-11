@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# install / build caches kept inside the project so a confined sandbox can write them
+.npm-cache/
+.electron-cache/
+.electron-builder-cache/
+
+# runtime data of the desktop shell and of the smoke test
+.electron-userdata/
+.electron-userdata-*/
+.dsh-test/
+tmp/
+
+# packaging output
+dist/
+
+# logs
+*.log
+
+# local dsh state; the project skill bundle is the one tracked part
+.dsh/*
+!.dsh/skills/

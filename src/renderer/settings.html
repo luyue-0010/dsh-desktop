@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>桌面端设置</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ground: #0b1013;
+        --panel: rgba(252, 250, 242, 0.045);
+        --line: rgba(252, 250, 242, 0.1);
+        --text: #fcfaf2;
+        --dim: #91989f;
+        --accent: #cb1b45;
+        --workspace: #33a6b8;
+        --add: #ffb11b;
+        --sessions: #86a697;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        grid-template-areas: 'head head' 'main side' 'foot foot';
+        background: var(--ground);
+        color: var(--text);
+        font: 13px/1.55 -apple-system, "Segoe UI", "Microsoft YaHei", Roboto, sans-serif;
+      }
+      header { grid-area: head; display: flex; align-items: center; gap: 12px; padding: 16px 20px 10px; }
+      header h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+      header .spacer { flex: 1; }
+      #status { color: var(--dim); font-size: 12px; min-height: 16px; }
+      #status.error { color: #ff8080; }
+      main { grid-area: main; overflow: auto; padding: 0 20px 20px; }
+      aside { grid-area: side; padding: 0 20px 20px 0; }
+      footer {
+        grid-area: foot;
+        display: flex; align-items: center; gap: 10px;
+        padding: 12px 20px; border-top: 1px solid var(--line);
+      }
+      footer .spacer { flex: 1; }
+
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+      }
+      section > h2 { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
+      section > p.hint { margin: 0 0 12px; color: var(--dim); font-size: 12px; }
+      .row { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+      .row > label { flex: none; width: 132px; color: var(--dim); font-size: 12px; }
+      .row > .grow { flex: 1; min-width: 0; }
+      .row .value { flex: none; width: 58px; text-align: right; font-variant-numeric: tabular-nums; color: var(--dim); font-size: 12px; }
+
+      input[type='text'], input[type='number'], select {
+        background: rgba(0, 0, 0, 0.32);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 6px 9px;
+        font: inherit;
+        font-size: 12px;
+        min-width: 0;
+        width: 100%;
+      }
+      input[type='color'] {
+        width: 34px; height: 26px; padding: 0;
+        background: transparent; border: 1px solid var(--line); border-radius: 7px; cursor: pointer;
+      }
+      input[type='range'] { width: 100%; accent-color: var(--workspace); }
+      input[type='checkbox'] { width: 15px; height: 15px; accent-color: var(--workspace); }
+      button {
+        font: inherit; font-size: 12px; padding: 6px 12px;
+        color: var(--text); background: rgba(252, 250, 242, 0.06);
+        border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
+      }
+      button:hover { background: rgba(252, 250, 242, 0.12); }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      button.ghost { background: transparent; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      button.mini { padding: 3px 8px; font-size: 11px; }
+
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+      .chip {
+        display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+        padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px;
+        background: rgba(0, 0, 0, 0.2); cursor: pointer; text-align: left;
+      }
+      .chip.active { border-color: var(--workspace); background: rgba(51, 166, 184, 0.14); }
+      .chip b { font-size: 12px; font-weight: 600; }
+      .chip span { font-size: 11px; color: var(--dim); }
+      .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+      .swatch { width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--line); cursor: pointer; }
+
+      /* fade anchor editor */
+      .stops { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+      .stop { display: grid; grid-template-columns: 64px 1fr 58px 28px; gap: 8px; align-items: center; }
+      .stop input[type='number'] { padding: 4px 6px; }
+      .bar { height: 34px; border-radius: 9px; border: 1px solid var(--line); margin-top: 10px; background: #000; }
+
+      /* preview */
+      .stage {
+        position: relative; width: 100%; aspect-ratio: 16 / 10;
+        border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+        background: var(--ground);
+      }
+      .stage .layer { position: absolute; inset: 0; }
+      .stage .image { background-size: cover; background-position: center center; }
+      .stage .fade { pointer-events: none; }
+      .stage .sidebar {
+        position: absolute; left: 0; top: 0; bottom: 0; width: 34%;
+        display: flex; flex-direction: column; gap: 5px; padding: 7px;
+        background: var(--ground);
+      }
+      .card {
+        border: 1px solid var(--line); border-radius: 8px; padding: 5px 7px;
+        font-size: 10px; color: var(--dim); background: rgba(252, 250, 242, 0.05);
+        border-bottom-width: 2px; border-bottom-style: solid;
+      }
+      .card.workspace { border-bottom-color: var(--workspace); }
+      .card.add { border-bottom-color: var(--add); }
+      .card.sessions { border-bottom-color: var(--sessions); flex: 1; }
+      .card .sel { color: var(--text); }
+      .preview-note { margin-top: 8px; color: var(--dim); font-size: 11px; line-height: 1.6; word-break: break-all; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>桌面端设置</h1>
+      <div class="spacer"></div>
+      <div id="status">正在读取配置…</div>
+    </header>
+
+    <main>
+      <section>
+        <h2>外观</h2>
+        <p class="hint">深色外观由应用自身的深色主题提供，这里只控制是否启用与底色。</p>
+        <div class="row">
+          <label for="theme-enabled">启用暗色外观层</label>
+          <input type="checkbox" id="theme-enabled" />
+          <span class="grow" style="color: var(--dim); font-size: 12px">关闭后恢复应用原生界面</span>
+        </div>
+        <div class="row">
+          <label for="force-dark">强制深色</label>
+          <input type="checkbox" id="force-dark" />
+          <span class="grow" style="color: var(--dim); font-size: 12px">关闭则跟随系统</span>
+        </div>
+        <div class="row">
+          <label for="ground">暗色底</label>
+          <input type="color" id="ground" />
+          <input type="text" class="grow" id="ground-hex" spellcheck="false" />
+        </div>
+      </section>
+
+      <section>
+        <h2>背景图</h2>
+        <p class="hint">选图后会复制到应用数据目录，并按所选预设生成派生图；留色预设只保留红瞳与蓝发。</p>
+        <div class="chips" id="presets"></div>
+        <div class="row" style="margin-top: 12px">
+          <label>当前来源</label>
+          <span class="grow" id="artwork-source" style="color: var(--dim); font-size: 12px">—</span>
+        </div>
+        <div class="row">
+          <label>操作</label>
+          <button id="pick-image">选择图片…</button>
+          <button id="use-bundled" class="ghost">用回内置图</button>
+          <button id="derive" class="ghost">重新生成派生图</button>
+        </div>
+        <div class="row">
+          <label for="image-opacity">不透明度</label>
+          <input type="range" id="image-opacity" min="0.05" max="1" step="0.01" class="grow" />
+          <span class="value" id="image-opacity-value"></span>
+        </div>
+      </section>
+
+      <section>
+        <h2>渐变（向下变暗）</h2>
+        <p class="hint">每个锚点是「位置 % / 暗度」。中间线性插值，暗度 1 表示该处完全为底色。</p>
+        <div class="stops" id="stops"></div>
+        <div class="row">
+          <button id="add-stop" class="mini">添加锚点</button>
+        </div>
+        <div class="bar" id="fade-bar"></div>
+      </section>
+
+      <section>
+        <h2>侧栏分区</h2>
+        <div class="row">
+          <label for="zones-enabled">启用分区卡片</label>
+          <input type="checkbox" id="zones-enabled" />
+          <label for="row-accents" style="width: auto">行强调色</label>
+          <input type="checkbox" id="row-accents" />
+        </div>
+        <div class="row"><label for="zone-gap">卡片间距</label><input type="range" id="zone-gap" min="0" max="40" step="1" class="grow" /><span class="value" id="zone-gap-value"></span></div>
+        <div class="row"><label for="zone-radius">圆角</label><input type="range" id="zone-radius" min="0" max="24" step="1" class="grow" /><span class="value" id="zone-radius-value"></span></div>
+        <div class="row"><label for="zone-pad">内边距</label><input type="range" id="zone-pad" min="0" max="24" step="1" class="grow" /><span class="value" id="zone-pad-value"></span></div>
+        <div class="row"><label for="zone-accent-width">底边宽度</label><input type="range" id="zone-accent-width" min="0" max="8" step="1" class="grow" /><span class="value" id="zone-accent-width-value"></span></div>
+        <div class="row" style="align-items: flex-start">
+          <label>配色</label>
+          <div class="grow">
+            <div class="swatches" id="palettes"></div>
+            <div class="row" style="margin: 10px 0 0">
+              <span style="color: var(--dim); font-size: 12px; width: 60px">工作区</span><input type="color" id="color-workspace" />
+              <span style="color: var(--dim); font-size: 12px; width: 60px">添加</span><input type="color" id="color-add-folder" />
+              <span style="color: var(--dim); font-size: 12px; width: 60px">会话区</span><input type="color" id="color-sessions" />
+              <span style="color: var(--dim); font-size: 12px; width: 60px">强调</span><input type="color" id="color-accent" />
+            </div>
+          </div>
+        </div>
+        <div class="row"><label for="label-add">「添加」标题</label><input type="text" id="label-add" /></div>
+        <div class="row"><label for="label-sessions">「会话区」标题</label><input type="text" id="label-sessions" /></div>
+        <div class="row"><label for="label-empty">空工作区提示</label><input type="text" id="label-empty" /></div>
+      </section>
+
+      <section>
+        <h2>毛玻璃</h2>
+        <div class="row"><label for="glass-blur">模糊</label><input type="range" id="glass-blur" min="0" max="40" step="1" class="grow" /><span class="value" id="glass-blur-value"></span></div>
+        <div class="row"><label for="glass-sat">饱和度</label><input type="range" id="glass-sat" min="1" max="2.5" step="0.05" class="grow" /><span class="value" id="glass-sat-value"></span></div>
+        <div class="row"><label for="glass-opacity">底色浓度</label><input type="range" id="glass-opacity" min="0" max="1" step="0.02" class="grow" /><span class="value" id="glass-opacity-value"></span></div>
+      </section>
+
+      <section>
+        <h2>dsh 运行时</h2>
+        <p class="hint">留空即自动探测。修改后需要重启本地服务生效（菜单「文件 → 重启本地服务」）。</p>
+        <div class="row"><label for="dsh-command">dsh 路径</label><input type="text" id="dsh-command" spellcheck="false" placeholder="留空自动探测" /></div>
+        <div class="row"><label for="dsh-node">node 路径</label><input type="text" id="dsh-node" spellcheck="false" placeholder="留空自动探测" /></div>
+        <div class="row"><label for="dsh-args">附加参数</label><input type="text" id="dsh-args" spellcheck="false" placeholder="以空格分隔，例如 --trusted-host example.com" /></div>
+        <div class="row"><label for="dsh-timeout">启动超时 (ms)</label><input type="number" id="dsh-timeout" min="5000" step="1000" class="grow" /></div>
+      </section>
+    </main>
+
+    <aside>
+      <section style="margin-bottom: 0">
+        <h2>预览</h2>
+        <p class="hint">侧栏卡片、对话列渐变与背景图的实际组合。</p>
+        <div class="stage" id="stage">
+          <div class="layer image" id="stage-image"></div>
+          <div class="layer fade" id="stage-fade"></div>
+          <div class="sidebar">
+            <div class="card workspace">工作区</div>
+            <div class="card add">添加文件夹</div>
+            <div class="card sessions">会话区<br /><span class="sel">· 选中的会话</span></div>
+          </div>
+        </div>
+        <div class="preview-note" id="artwork-path">—</div>
+      </section>
+    </aside>
+
+    <footer>
+      <button id="reset" class="ghost">恢复默认</button>
+      <div class="spacer"></div>
+      <button id="close" class="primary">完成</button>
+    </footer>
+
+    <script>
+      const api = window.dshDesktop
+      const $ = (id) => document.getElementById(id)
+      const PRESET_LABELS = {
+        selective: ['留色', '黑白 + 红瞳蓝发'],
+        mono: ['纯黑白', '完全去色'],
+        blackgold: ['黑金', '黑白加暖金'],
+        none: ['原图', '不处理'],
+      }
+      const PALETTES = [
+        {
+          name: '传统和色',
+          colors: { workspace: '#33A6B8', addFolder: '#FFB11B', sessions: '#86A697', accent: '#CB1B45' },
+        },
+        {
+          name: '黑金',
+          colors: { workspace: '#C9A227', addFolder: '#A8801C', sessions: '#7A6A3A', accent: '#E5C158' },
+        },
+        {
+          name: '低饱和冷雾',
+          colors: { workspace: '#94A3C4', addFolder: '#C9AF8E', sessions: '#8FB3A0', accent: '#B0605F' },
+        },
+      ]
+
+      let draft = null
+      let artwork = null
+      let saveTimer = 0
+
+      /**
+       * Merge `source` into `target` **without replacing any object or array**.
+       *
+       * A plain `target = source` swap silently breaks every closure that
+       * captured a nested value (the fade-anchor rows hold a reference to their
+       * own `[percent, darkness]` pair): the UI keeps writing into the detached
+       * old object, so after the first save further edits stop taking effect.
+       * Mutating in place keeps those references valid.
+       */
+      function applyInPlace(target, source) {
+        for (const key of Object.keys(source || {})) {
+          const incoming = source[key]
+          const current = target[key]
+          if (Array.isArray(incoming)) {
+            if (!Array.isArray(current)) {
+              target[key] = incoming
+              continue
+            }
+            current.length = incoming.length
+            incoming.forEach((item, index) => {
+              if (Array.isArray(item) && Array.isArray(current[index])) {
+                current[index].length = 0
+                current[index].push(...item)
+              } else {
+                current[index] = item
+              }
+            })
+          } else if (incoming && typeof incoming === 'object') {
+            if (!current || typeof current !== 'object') target[key] = { ...incoming }
+            else applyInPlace(current, incoming)
+          } else {
+            target[key] = incoming
+          }
+        }
+        return target
+      }
+
+      const status = (text, isError) => {
+        const node = $('status')
+        node.textContent = text
+        node.className = isError ? 'error' : ''
+      }
+      const hexToRgba = (hex, alpha) => {
+        const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hex || '').trim())
+        if (!match) return hex
+        let value = match[1]
+        if (value.length === 3) value = value.split('').map((c) => c + c).join('')
+        const n = Number.parseInt(value, 16)
+        return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`
+      }
+
+      /* ---------- rendering ---------- */
+
+      function renderPresets() {
+        const host = $('presets')
+        host.replaceChildren()
+        for (const [id, [label, hint]] of Object.entries(PRESET_LABELS)) {
+          const chip = document.createElement('button')
+          chip.className = 'chip' + (draft.theme.imagePreset === id ? ' active' : '')
+          chip.innerHTML = `<b></b><span></span>`
+          chip.querySelector('b').textContent = label
+          chip.querySelector('span').textContent = hint
+          chip.addEventListener('click', () => {
+            draft.theme.imagePreset = id
+            renderPresets()
+            void refreshArtwork()
+            void save()
+          })
+          host.appendChild(chip)
+        }
+      }
+
+      function renderPalettes() {
+        const host = $('palettes')
+        host.replaceChildren()
+        for (const palette of PALETTES) {
+          const swatch = document.createElement('button')
+          swatch.className = 'swatch'
+          swatch.title = palette.name
+          const colors = [palette.colors.workspace, palette.colors.addFolder, palette.colors.sessions, palette.colors.accent]
+          swatch.style.background = `linear-gradient(135deg, ${colors[0]} 0 25%, ${colors[1]} 25% 50%, ${colors[2]} 50% 75%, ${colors[3]} 75% 100%)`
+          swatch.addEventListener('click', () => {
+            Object.assign(draft.zones.colors, palette.colors)
+            fillColors()
+            void save()
+          })
+          host.appendChild(swatch)
+        }
+      }
+
+      function renderStops() {
+        const host = $('stops')
+        host.replaceChildren()
+        draft.theme.fadeStops.forEach((stop, index) => {
+          const row = document.createElement('div')
+          row.className = 'stop'
+          const percent = document.createElement('input')
+          percent.type = 'number'
+          percent.min = '0'
+          percent.max = '100'
+          percent.value = String(stop[0])
+          const range = document.createElement('input')
+          range.type = 'range'
+          range.min = '0'
+          range.max = '1'
+          range.step = '0.01'
+          range.value = String(stop[1])
+          const value = document.createElement('span')
+          value.className = 'value'
+          value.textContent = `${Math.round(stop[1] * 100)}%`
+          const remove = document.createElement('button')
+          remove.className = 'mini ghost'
+          remove.textContent = '×'
+          remove.title = '删除锚点'
+          remove.addEventListener('click', () => {
+            if (draft.theme.fadeStops.length <= 2) return
+            draft.theme.fadeStops.splice(index, 1)
+            renderStops()
+            renderPreview()
+            void save()
+          })
+          const touch = () => {
+            /* Resolve through `draft` rather than the captured pair, so this can
+               never write into a detached copy. */
+            const target = draft.theme.fadeStops[index]
+            if (!target) return
+            target[0] = Math.max(0, Math.min(100, Number(percent.value) || 0))
+            target[1] = Math.max(0, Math.min(1, Number(range.value) || 0))
+            value.textContent = `${Math.round(target[1] * 100)}%`
+            renderPreview()
+          }
+          percent.addEventListener('input', touch)
+          range.addEventListener('input', touch)
+          percent.addEventListener('change', () => void save())
+          range.addEventListener('change', () => void save())
+          row.append(percent, range, value, remove)
+          host.appendChild(row)
+        })
+      }
+
+      function fadeCss() {
+        const stops = draft.theme.fadeStops
+          .slice()
+          .sort((a, b) => a[0] - b[0])
+          .map(([percent, darkness]) => `${hexToRgba(draft.theme.colors.ground, darkness)} ${percent}%`)
+        return `linear-gradient(to bottom, ${stops.join(', ')})`
+      }
+
+      function renderPreview() {
+        const zones = draft.zones
+        const root = document.documentElement.style
+        root.setProperty('--ground', draft.theme.colors.ground)
+        root.setProperty('--accent', zones.colors.accent)
+        root.setProperty('--workspace', zones.colors.workspace)
+        root.setProperty('--add', zones.colors.addFolder)
+        root.setProperty('--sessions', zones.colors.sessions)
+        const stage = $('stage')
+        stage.style.opacity = '1'
+        const image = $('stage-image')
+        image.style.opacity = draft.theme.enabled ? String(draft.theme.imageOpacity) : '0'
+        if (artwork && artwork.dataUri) image.style.backgroundImage = `url("${artwork.dataUri}")`
+        $('stage-fade').style.backgroundImage = draft.theme.enabled ? fadeCss() : 'none'
+        $('stage').querySelector('.sidebar').style.opacity = zones.enabled ? '1' : '0.15'
+        $('fade-bar').style.backgroundImage = fadeCss()
+        $('artwork-path').textContent = artwork ? artwork.path : '—'
+      }
+
+      /* ---------- form filling ---------- */
+
+      function fillColors() {
+        $('color-workspace').value = draft.zones.colors.workspace
+        $('color-add-folder').value = draft.zones.colors.addFolder
+        $('color-sessions').value = draft.zones.colors.sessions
+        $('color-accent').value = draft.zones.colors.accent
+      }
+
+      function fill() {
+        const t = draft.theme
+        const z = draft.zones
+        const d = draft.dsh
+        $('theme-enabled').checked = t.enabled
+        $('force-dark').checked = t.forceDark
+        $('ground').value = t.colors.ground
+        $('ground-hex').value = t.colors.ground
+        $('image-opacity').value = String(t.imageOpacity)
+        $('image-opacity-value').textContent = `${Math.round(t.imageOpacity * 100)}%`
+        $('zones-enabled').checked = z.enabled
+        $('row-accents').checked = z.rowAccents
+        $('zone-gap').value = String(z.gap)
+        $('zone-gap-value').textContent = `${z.gap}px`
+        $('zone-radius').value = String(z.radius)
+        $('zone-radius-value').textContent = `${z.radius}px`
+        $('zone-pad').value = String(z.padding)
+        $('zone-pad-value').textContent = `${z.padding}px`
+        $('zone-accent-width').value = String(z.accentWidth)
+        $('zone-accent-width-value').textContent = `${z.accentWidth}px`
+        $('label-add').value = (z.labels && z.labels.addFolder) || ''
+        $('label-sessions').value = (z.labels && z.labels.sessions) || ''
+        $('label-empty').value = (z.labels && z.labels.emptyWorkspaces) || ''
+        $('glass-blur').value = String(t.glass.blur)
+        $('glass-blur-value').textContent = `${t.glass.blur}px`
+        $('glass-sat').value = String(t.glass.saturation)
+        $('glass-sat-value').textContent = Number(t.glass.saturation).toFixed(2)
+        $('glass-opacity').value = String(t.glass.opacity)
+        $('glass-opacity-value').textContent = `${Math.round(t.glass.opacity * 100)}%`
+        $('dsh-command').value = d.command || ''
+        $('dsh-node').value = d.nodePath || ''
+        $('dsh-args').value = (d.extraArgs || []).join(' ')
+        $('dsh-timeout').value = String(d.startupTimeoutMs || 120000)
+        fillColors()
+        renderPresets()
+        renderPalettes()
+        renderStops()
+        renderPreview()
+      }
+
+      /* ---------- persistence ---------- */
+
+      async function save() {
+        clearTimeout(saveTimer)
+        saveTimer = setTimeout(async () => {
+          if (!api) return
+          status('正在应用…')
+          try {
+            const next = await api.setSettings({ theme: draft.theme, zones: draft.zones, dsh: draft.dsh })
+            applyInPlace(draft, next)
+            fillColors()
+            renderPreview()
+            status(`已应用 · ${new Date().toLocaleTimeString()}`)
+          } catch (error) {
+            status(`保存失败：${(error && error.message) || error}`, true)
+          }
+        }, 260)
+      }
+
+      async function refreshArtwork() {
+        if (!api) return
+        artwork = await api.artworkPreview({ preset: draft.theme.imagePreset })
+        $('artwork-source').textContent = draft.theme.image
+          ? `自定义：${draft.theme.image}`
+          : '内置图 ' + (artwork.bundled ? '（使用内置派生图）' : '')
+        renderPreview()
+      }
+
+      /* ---------- wiring ---------- */
+
+      function wire() {
+        const bindCheck = (id, apply) => $(id).addEventListener('change', (event) => { apply(event.target.checked); void save() })
+        const bindRange = (id, valueId, apply, format) => {
+          const input = $(id)
+          input.addEventListener('input', () => {
+            apply(Number(input.value))
+            if (valueId) $(valueId).textContent = format(Number(input.value))
+            renderPreview()
+          })
+          input.addEventListener('change', () => void save())
+        }
+
+        bindCheck('theme-enabled', (v) => { draft.theme.enabled = v })
+        bindCheck('force-dark', (v) => { draft.theme.forceDark = v })
+        bindCheck('zones-enabled', (v) => { draft.zones.enabled = v })
+        bindCheck('row-accents', (v) => { draft.zones.rowAccents = v })
+
+        const bindGround = (input) => input.addEventListener('input', () => {
+          draft.theme.colors.ground = input.value
+          $('ground').value = input.value
+          $('ground-hex').value = input.value
+          renderPreview()
+        })
+        bindGround($('ground'))
+        bindGround($('ground-hex'))
+        $('ground-hex').addEventListener('change', () => { draft.theme.colors.ground = $('ground-hex').value; void save() })
+        $('ground').addEventListener('change', () => void save())
+
+        bindRange('image-opacity', 'image-opacity-value', (v) => { draft.theme.imageOpacity = v }, (v) => `${Math.round(v * 100)}%`)
+        bindRange('zone-gap', 'zone-gap-value', (v) => { draft.zones.gap = v }, (v) => `${v}px`)
+        bindRange('zone-radius', 'zone-radius-value', (v) => { draft.zones.radius = v }, (v) => `${v}px`)
+        bindRange('zone-pad', 'zone-pad-value', (v) => { draft.zones.padding = v }, (v) => `${v}px`)
+        bindRange('zone-accent-width', 'zone-accent-width-value', (v) => { draft.zones.accentWidth = v }, (v) => `${v}px`)
+        bindRange('glass-blur', 'glass-blur-value', (v) => { draft.theme.glass.blur = v }, (v) => `${v}px`)
+        bindRange('glass-sat', 'glass-sat-value', (v) => { draft.theme.glass.saturation = v }, (v) => v.toFixed(2))
+        bindRange('glass-opacity', 'glass-opacity-value', (v) => { draft.theme.glass.opacity = v }, (v) => `${Math.round(v * 100)}%`)
+
+        for (const [id, key] of [
+          ['color-workspace', 'workspace'],
+          ['color-add-folder', 'addFolder'],
+          ['color-sessions', 'sessions'],
+          ['color-accent', 'accent'],
+        ]) {
+          $(id).addEventListener('input', () => { draft.zones.colors[key] = $(id).value; renderPreview() })
+          $(id).addEventListener('change', () => void save())
+        }
+
+        $('label-add').addEventListener('change', () => { draft.zones.labels.addFolder = $('label-add').value; void save() })
+        $('label-sessions').addEventListener('change', () => { draft.zones.labels.sessions = $('label-sessions').value; void save() })
+        $('label-empty').addEventListener('change', () => { draft.zones.labels.emptyWorkspaces = $('label-empty').value; void save() })
+
+        $('dsh-command').addEventListener('change', () => { draft.dsh.command = $('dsh-command').value.trim(); void save() })
+        $('dsh-node').addEventListener('change', () => { draft.dsh.nodePath = $('dsh-node').value.trim(); void save() })
+        $('dsh-args').addEventListener('change', () => {
+          draft.dsh.extraArgs = $('dsh-args').value.split(/\s+/).filter(Boolean)
+          void save()
+        })
+        $('dsh-timeout').addEventListener('change', () => { draft.dsh.startupTimeoutMs = Number($('dsh-timeout').value) || 120000; void save() })
+
+        $('add-stop').addEventListener('click', () => {
+          draft.theme.fadeStops.push([100, 1])
+          draft.theme.fadeStops.sort((a, b) => a[0] - b[0])
+          renderStops()
+          renderPreview()
+          void save()
+        })
+
+        $('pick-image').addEventListener('click', async () => {
+          const picked = await api.pickBackgroundImage()
+          if (!picked) return
+          draft.theme.image = picked.path
+          status(`已选择 ${picked.name}，正在生成派生图…`)
+          await api.setSettings({ theme: { image: picked.path } })
+          const derived = await api.deriveArtwork({ preset: draft.theme.imagePreset })
+          if (!derived.ok) status(`生成失败：${derived.error}`, true)
+          else status(`已生成 ${draft.theme.imagePreset} 派生图`)
+          await refreshArtwork()
+        })
+
+        $('use-bundled').addEventListener('click', async () => {
+          await api.clearBackgroundImage()
+          draft.theme.image = ''
+          await api.setSettings({ theme: { image: '' } })
+          await refreshArtwork()
+          status('已切回内置图')
+        })
+
+        $('derive').addEventListener('click', async () => {
+          status('正在生成派生图…')
+          const derived = await api.deriveArtwork({ preset: draft.theme.imagePreset })
+          if (!derived.ok) status(`生成失败：${derived.error}`, true)
+          else status(`已生成 ${derived.width}×${derived.height} 派生图`)
+          await refreshArtwork()
+        })
+
+        $('reset').addEventListener('click', async () => {
+          draft = await api.resetSettings()
+          fill()
+          await refreshArtwork()
+          status('已恢复默认')
+        })
+
+        $('close').addEventListener('click', () => api.closeSettings())
+      }
+
+      ;(async () => {
+        if (!api) {
+          status('无法连接主进程', true)
+          return
+        }
+        draft = await api.getSettings()
+        wire()
+        fill()
+        await refreshArtwork()
+        status('改动即时生效')
+      })()
+    </script>
+  </body>
+</html>
