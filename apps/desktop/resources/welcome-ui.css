@@ -1,0 +1,31 @@
+
+:root { color-scheme: dark !important; }
+body {
+  --dsw-alias-label-primary: #FCFAF2;
+  --dsw-alias-label-secondary: #CFD3D6;
+  --dsw-alias-label-tertiary: #ADB2B8;
+  --dsw-alias-label-primary-inverted: #0B1013;
+  --dsw-alias-brand-primary: #FCFAF2;
+  --dsw-alias-button-primary-hover: #E7E9EF;
+  --dsw-alias-button-elevated-fill: #1A2026;
+  --dsw-alias-button-floating-hover: #252B32;
+  --dsw-alias-border-l2: rgba(252,250,242,.14);
+  --dsw-alias-border-l4: rgba(252,250,242,.22);
+  --dsw-alias-label-caption: #81858C;
+  --welcome-tint: #0B1013;
+}
+html, body, #root { background: #0B1013 !important; }
+#root { background: var(--welcome-tint) !important; }
+.titlebar {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  padding: 0 148px 0 16px !important;
+  color: #E7E9EF;
+  -webkit-app-region: drag;
+}
+.dsh-welcome-whale { width: 23px; height: 17px; flex: none; color: #FCFAF2; }
+.dsh-welcome-title { font-family: "Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.dsh-welcome-tag { padding: 3px 6px; border: 1px solid rgba(252,250,242,.15); border-radius: 999px; color: #98A1AD; font-family: "Noto Sans CJK SC", system-ui, sans-serif; font-size: 9.5px; font-weight: 500; }
+.brand { color: #FCFAF2; }
+.actions button:focus-visible { outline-color: #FCFAF2; }

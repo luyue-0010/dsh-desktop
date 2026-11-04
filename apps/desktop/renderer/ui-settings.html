@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'" />
+    <title>界面设置</title>
+    <link rel="stylesheet" href="./ui-settings.css" />
+    <script src="./ui-settings.js" defer></script>
+  </head>
+  <body>
+    <div class="titlebar"><span class="titlebar-title">界面设置</span><span class="titlebar-sub">DeepSeek Harness</span></div>
+    <main>
+      <section>
+        <h2>侧栏三卡片</h2>
+        <div class="grid">
+          <label>工作区 <input type="color" id="color-workspace" /></label>
+          <label>添加文件夹 <input type="color" id="color-add" /></label>
+          <label>会话区 <input type="color" id="color-sessions" /></label>
+          <label>强调色 <input type="color" id="color-accent" /></label>
+        </div>
+        <label class="wide">添加文件夹标签 <input type="text" id="label-add" maxlength="40" /></label>
+        <label class="wide">会话区标签 <input type="text" id="label-sessions" maxlength="40" /></label>
+      </section>
+      <section>
+        <h2>主题</h2>
+        <div class="grid">
+          <label>底色 <input type="color" id="color-ground" /></label>
+          <label>背景预设
+            <select id="image-preset">
+              <option value="selective">留色（蓝发红瞳）</option>
+              <option value="mono">纯黑白</option>
+              <option value="blackgold">黑金</option>
+              <option value="none">原图</option>
+            </select>
+          </label>
+        </div>
+      </section>
+      <section>
+        <h2>启动</h2>
+        <label class="check"><input type="checkbox" id="autostart" /> 登录系统后自动启动 DeepSeek Harness</label>
+        <p class="hint">在 Linux 写入 ~/.config/autostart/deepseek-harness.desktop；关闭后移除该文件。</p>
+      </section>
+      <footer>
+        <span id="status" class="status"></span>
+        <button id="close" type="button" class="secondary">关闭</button>
+        <button id="save" type="button" class="primary">保存并应用</button>
+      </footer>
+    </main>
+  </body>
+</html>
