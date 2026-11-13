@@ -1,12 +1,12 @@
-# DeepSeek Harness Linux Desktop — our 0.4.0 refactor
+# DeepSeek Harness Linux Desktop — our 0.4.1 refactor
 
 This branch replaces the earlier thin Electron shell with a fork of the official
-DeepSeek Harness desktop application (`apps/desktop`), ported to Linux.
+DeepSeek Harness desktop application, ported to Linux.
 
 - Upstream: https://github.com/deepseek-ai/deepseek-harness
-- Upstream commit: `8bd073392eef6f54e921a093b95076248eb08cbb`
-- Upstream desktop version: `0.2.2-alpha.3`
-- Our milestone: `0.4.0-linux`
+- Upstream commit: `ddac96760b6edf8fa0fe17cbdcf0b512f4c12b2c` (`dsh-v0.2.2-rc.2`)
+- Upstream desktop version: `0.2.2-rc.2`
+- Our milestone: `0.4.1-linux`
 
 ## What is included
 
@@ -20,8 +20,9 @@ DeepSeek Harness desktop application (`apps/desktop`), ported to Linux.
   `~/.config/DeepSeek Harness/desktop-settings.json`.
 - Desktop settings window with colors, labels, background preset and
   login autostart toggle (XDG `~/.config/autostart/deepseek-harness.desktop`).
-- `chrome-sandbox` is shipped 0755 and the desktop/autostart entry uses
-  `--no-sandbox` on this target. See `dsh-desktop` notes in the workspace.
+- Linux packages use `asar: false` because the Desktop Host is spawned as a
+  plain Node child that cannot resolve modules inside an asar archive. The
+  desktop/autostart entries also carry `--no-sandbox` on this target.
 
 ## Build
 
@@ -34,17 +35,7 @@ pnpm --filter @deepseek-ai/dsh-desktop run build
 Linux packaging (unsigned):
 
 ```sh
-pnpm --filter @deepseek-ai/dsh-desktop exec tsx scripts/package-target.ts linux-x64 --unsigned --dir
-# AppImage/deb: run electron-builder with DSH_DESKTOP_TARGET_PLATFORM=linux
-```
-
-## Run
-
-```sh
-DSH_HOME=/tmp/dsh-home \
-DSH_DESKTOP_USER_DATA_DIR=/tmp/dsh-userdata \
-TMPDIR=/tmp/dsh-tmp \
-pnpm --filter @deepseek-ai/dsh-desktop run start
+pnpm --filter @deepseek-ai/dsh-desktop exec tsx scripts/package-target.ts linux-x64 --unsigned
 ```
 
 ## Known limits

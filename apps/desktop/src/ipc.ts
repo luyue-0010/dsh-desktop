@@ -42,6 +42,9 @@ export const DESKTOP_IPC = {
   updatesPresentation: 'dsh-desktop:updates-presentation',
   nativeThemeSet: 'dsh-desktop:native-theme-set',
   windowFullscreen: 'dsh-desktop:window-fullscreen',
+  windowMinimize: 'dsh-desktop:window-minimize',
+  windowToggleMaximize: 'dsh-desktop:window-toggle-maximize',
+  windowClose: 'dsh-desktop:window-close',
   windowsAppearance: 'dsh-desktop:windows-appearance',
   windowsMenu: 'dsh-desktop:windows-menu',
   uiSettingsOpen: 'dsh-desktop:ui-settings-open',
@@ -109,6 +112,12 @@ export interface DshDesktopProductApi {
   deviceInfo(): Promise<string>
   /** Open the desktop-owned appearance settings window. */
   openUiSettings(): Promise<void>
+  /** Frameless-window controls for the injected Linux titlebar. */
+  readonly window: {
+    minimize(): Promise<void>
+    toggleMaximize(): Promise<boolean>
+    close(): Promise<void>
+  }
   readonly updates: {
     readonly channels: DesktopChannelBridge
     status(): Promise<DesktopUpdatePresentation>

@@ -1,8 +1,9 @@
 :root { color-scheme: dark; }
+body.light { color-scheme: light; }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: #0B1013; color: #FCFAF2; font-family: "Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif; }
 body { padding-top: 40px; }
-.titlebar { position: fixed; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 148px 0 16px; background: #0B1013; border-bottom: 1px solid rgba(252,250,242,.08); -webkit-app-region: drag; }
+.titlebar { position: fixed; top: 0; left: 0; right: 0; height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 16px; background: #0B1013; border-bottom: 1px solid rgba(252,250,242,.08); -webkit-app-region: drag; }
 .titlebar-title { font-size: 12px; font-weight: 600; }
 .titlebar-sub { font-size: 9.5px; color: #98A1AD; border: 1px solid rgba(252,250,242,.15); border-radius: 999px; padding: 3px 6px; }
 main { max-width: 620px; margin: 0 auto; padding: 22px 24px 80px; }
@@ -23,3 +24,19 @@ button { height: 34px; padding: 0 14px; border: 1px solid transparent; border-ra
 button.primary { background: #FCFAF2; color: #0B1013; }
 button.secondary { background: #1A2026; color: #FCFAF2; border-color: rgba(252,250,242,.12); }
 button:disabled { opacity: .5; cursor: default; }
+
+/* light appearance */
+body.light { background: #F6F4EF; color: #1C1C1E; }
+body.light .titlebar { background: #F6F4EF; border-bottom-color: rgba(28,28,30,.09); }
+body.light .titlebar-sub { color: #6B7280; border-color: rgba(28,28,30,.14); }
+body.light section { background: rgba(255,255,255,.62); border-color: rgba(28,28,30,.09); }
+body.light h2 { color: #1C1C1E; }
+body.light label { color: #6B7280; }
+body.light input[type="color"] { border-color: rgba(28,28,30,.14); background: #FFFFFF; }
+body.light input[type="text"], body.light select { border-color: rgba(28,28,30,.14); background: #FFFFFF; color: #1C1C1E; }
+body.light label.check { color: #1C1C1E; }
+body.light .hint { color: #8A8F98; }
+body.light footer { background: #F6F4EF; border-top-color: rgba(28,28,30,.09); }
+body.light .status { color: #6B7280; }
+body.light button.primary { background: #1C1C1E; color: #FFFFFF; }
+body.light button.secondary { background: #FFFFFF; color: #1C1C1E; border-color: rgba(28,28,30,.12); }

@@ -481,16 +481,27 @@ function sidebarZonesBootstrap(opts) {
    * is keyed off this flag, so a user who picks the light appearance inside the
    * app keeps the stock UI untouched.
    */
+  /**
+   * The app mirrors its effective appearance on `<body data-ds-dark-theme>`.
+   * Prefer that flag (it also follows the in-app Appearance switch) and fall
+   * back to the OS preference before the app has mounted.
+   */
+  function currentDark() {
+    var body = document.body
+    if (body && body.hasAttribute('data-ds-dark-theme')) return true
+    if (body && body.getAttribute('style') && /color-scheme:\s*light/.test(body.getAttribute('style'))) return false
+    if (typeof matchMedia === 'function') return matchMedia('(prefers-color-scheme: dark)').matches
+    return true
+  }
+
   function syncAppearance() {
-    var dark = typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches
+    var dark = currentDark()
     document.documentElement.setAttribute('data-dsh-dark', dark ? 'true' : 'false')
     return dark
   }
 
-  /** Re-apply when the OS / app appearance flips. */
+  /** Re-apply when the OS or the in-app appearance flips. */
   function watchAppearance() {
-    if (state.media || typeof matchMedia !== 'function') return
-    state.media = matchMedia('(prefers-color-scheme: dark)')
     var onChange = function () {
       try {
         apply()
@@ -498,8 +509,15 @@ function sidebarZonesBootstrap(opts) {
         /* a restyle must never break the app */
       }
     }
-    if (typeof state.media.addEventListener === 'function') state.media.addEventListener('change', onChange)
-    else if (typeof state.media.addListener === 'function') state.media.addListener(onChange)
+    if (!state.media && typeof matchMedia === 'function') {
+      state.media = matchMedia('(prefers-color-scheme: dark)')
+      if (typeof state.media.addEventListener === 'function') state.media.addEventListener('change', onChange)
+      else if (typeof state.media.addListener === 'function') state.media.addListener(onChange)
+    }
+    if (!state.bodyObserver && typeof MutationObserver === 'function' && document.body) {
+      state.bodyObserver = new MutationObserver(onChange)
+      state.bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme', 'style'] })
+    }
   }
 
   /** Build a zone title row (coloured dot + label). */

@@ -35,6 +35,11 @@ function createProductApi(): DshDesktopProductApi {
     },
     deviceInfo: () => ipcRenderer.invoke(DESKTOP_IPC.deviceInfo) as Promise<string>,
     openUiSettings: () => ipcRenderer.invoke(DESKTOP_IPC.uiSettingsOpen) as Promise<void>,
+    window: {
+      minimize: () => ipcRenderer.invoke(DESKTOP_IPC.windowMinimize) as Promise<void>,
+      toggleMaximize: () => ipcRenderer.invoke(DESKTOP_IPC.windowToggleMaximize) as Promise<boolean>,
+      close: () => ipcRenderer.invoke(DESKTOP_IPC.windowClose) as Promise<void>,
+    },
     keyboard: {
       closeWindow: revision => ipcRenderer.invoke(DESKTOP_IPC.shortcutsCloseWindow, revision) as Promise<void>,
       subscribe: (listener) => {

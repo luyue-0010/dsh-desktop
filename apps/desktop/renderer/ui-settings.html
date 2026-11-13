@@ -23,7 +23,20 @@
         <label class="wide">会话区标签 <input type="text" id="label-sessions" maxlength="40" /></label>
       </section>
       <section>
-        <h2>主题</h2>
+        <h2>外观</h2>
+        <div class="grid">
+          <label>亮度
+            <select id="appearance">
+              <option value="light">浅色</option>
+              <option value="dark">深色</option>
+              <option value="system">跟随系统</option>
+            </select>
+          </label>
+          <label>浅色底色 <input type="color" id="color-light-ground" /></label>
+        </div>
+      </section>
+      <section>
+        <h2>背景</h2>
         <div class="grid">
           <label>底色 <input type="color" id="color-ground" /></label>
           <label>背景预设

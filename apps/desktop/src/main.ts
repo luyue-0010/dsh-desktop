@@ -39,6 +39,7 @@ import { DesktopBackendController } from './backend-controller.ts'
 import { DESKTOP_IPC, SCHEME, assertDesktopSender, type DesktopUpdateState } from './ipc.ts'
 import { readDeviceInfo } from './device-info.ts'
 import { desktopUpdateReadyConfirmation, formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale } from './locale.ts'
+import type { DesktopMessages } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { desktopUpdateChannel } from './update-channel.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
@@ -240,9 +241,10 @@ function developmentHostInspectPort(enabled: boolean): number | undefined {
 /**
  * Opaque chrome fallback matching the built-in sidebar palette (the resolved
  * `--dsw-static-neutral-bluish-900` / `-50` tokens). An approximation for
- * custom themes: Windows swaps in the renderer's measured palette over the
- * windowsAppearance IPC, and macOS shows it only while minimized or hidden.
- * @returns the sidebar fill hex for the active system color scheme.
+ * custom themes: Windows captions use the renderer's measured palette over
+ * windowsAppearance IPC. The Windows workspace base stays opaque and follows
+ * the effective light/dark theme; macOS uses it only while minimized or hidden.
+ * @returns the sidebar fill hex for the effective application color scheme.
  */
 function chromeFallbackFill(): string {
   return nativeTheme.shouldUseDarkColors ? '#1b1b1c' : '#f9fafb'
@@ -273,7 +275,7 @@ interface UiModules {
     resolveBackgroundPath: (theme: unknown, dirs: { appRoot: string }) => string
   }
   readonly zones: {
-    buildZoneOptions: (zones: unknown, theme: { css: string, enabled: boolean }) => unknown
+    buildZoneOptions: (zones: unknown, theme: { css: string; enabled: boolean }) => unknown
     buildZoneScript: (options: unknown) => string
   }
 }
@@ -300,37 +302,70 @@ function resolveUiSettingsPath(): string {
     join(app.getPath('appData'), 'DeepSeek Harness', 'desktop-settings.json'),
     join(app.getPath('userData'), 'desktop-settings.json'),
   ].filter((candidate): candidate is string => typeof candidate === 'string' && candidate !== '')
-  const existing = candidates.find(candidate => {
+  const existing = candidates.find((candidate) => {
     try { return existsSync(candidate) } catch { return false }
   })
   return existing ?? join(app.getPath('appData'), 'DeepSeek Harness', 'desktop-settings.json')
 }
 
+type UiSettings = {
+  zones?: { colors?: Record<string, unknown>; labels?: Record<string, unknown> }
+  theme?: {
+    appearance?: unknown
+    colors?: { ground?: unknown }
+    light?: { colors?: { ground?: unknown } }
+    imagePreset?: unknown
+  }
+}
+
 /** Read and merge the settings file; defaults when it is missing or invalid. */
-function readUiSettings(): Record<string, any> {
+function readUiSettings(): UiSettings {
   const modules = loadUiModules()
   const file = resolveUiSettingsPath()
   try {
     if (existsSync(file)) {
       const raw: unknown = JSON.parse(readFileSync(file, 'utf8'))
       if (raw !== null && typeof raw === 'object' && !Array.isArray(raw)) {
-        return modules.settings.merge(modules.settings.DEFAULT_SETTINGS, raw as Record<string, unknown>) as Record<string, any>
+        return modules.settings.merge(modules.settings.DEFAULT_SETTINGS, raw as Record<string, unknown>)
       }
     }
   } catch (error) {
     console.warn('desktop ui settings: read failed', error)
   }
-  return modules.settings.DEFAULT_SETTINGS as Record<string, any>
+  return modules.settings.DEFAULT_SETTINGS
 }
 
 /** Persist a validated patch at the exact resolved settings path. */
-function writeUiSettings(patch: Record<string, unknown>): Record<string, any> {
+function writeUiSettings(patch: Record<string, unknown>): UiSettings {
   const modules = loadUiModules()
   const file = resolveUiSettingsPath()
-  const next = modules.settings.merge(readUiSettings(), patch) as Record<string, any>
+  const next = modules.settings.merge(readUiSettings(), patch) as UiSettings
   mkdirSync(dirname(file), { recursive: true })
   writeFileSync(file, `${JSON.stringify(next, undefined, 2)}\n`, 'utf8')
   return next
+}
+
+/** The shell's appearance choice; anything unrecognized falls back to light. */
+type ShellAppearance = 'light' | 'dark' | 'system'
+
+/**
+ * Resolve the configured appearance.
+ * @param theme - the raw `theme` settings block.
+ * @returns `light`, `dark`, or `system`.
+ */
+function resolveAppearance(theme: unknown): ShellAppearance {
+  const value = (theme as { appearance?: unknown } | undefined)?.appearance
+  return value === 'dark' || value === 'system' ? value : 'light'
+}
+
+/**
+ * Native window chrome colours for one appearance.
+ * @param appearance - resolved shell appearance.
+ * @returns background and symbol colours for the titlebar overlay.
+ */
+function appearanceChrome(appearance: ShellAppearance): { color: string; symbol: string } {
+  const dark = appearance === 'dark' || (appearance === 'system' && nativeTheme.shouldUseDarkColors)
+  return dark ? { color: '#0B1013', symbol: '#E7E9EF' } : { color: '#F6F4EF', symbol: '#1F2937' }
 }
 
 /** Subset exposed to the settings window. */
@@ -342,7 +377,9 @@ function publicUiSettings(): Record<string, unknown> {
       labels: settings.zones?.labels ?? {},
     },
     theme: {
+      appearance: resolveAppearance(settings.theme),
       colors: { ground: settings.theme?.colors?.ground ?? '#0B1013' },
+      lightColors: { ground: settings.theme?.light?.colors?.ground ?? '#F6F4EF' },
       imagePreset: settings.theme?.imagePreset ?? 'selective',
     },
     autostart: isAutostartEnabled(),
@@ -366,27 +403,40 @@ function validateUiPatch(input: unknown): Record<string, unknown> {
   const labels = isRecord(zones.labels) ? zones.labels : {}
   const theme = isRecord(input.theme) ? input.theme : {}
   const themeColors = isRecord(theme.colors) ? theme.colors : {}
-  const patch: Record<string, unknown> = {
+  const patch: {
+    zones: { colors: Record<string, string>; labels: Record<string, string> }
+    theme: {
+      colors: Record<string, string>
+      imagePreset?: unknown
+      appearance?: string
+      light?: { colors: { ground: string } }
+    }
+  } = {
     zones: { colors: {}, labels: {} },
     theme: { colors: {}, imagePreset: theme.imagePreset ?? 'selective' },
   }
-  const zoneColors = (patch.zones as any).colors
+  if (theme.appearance === 'light' || theme.appearance === 'dark' || theme.appearance === 'system') {
+    patch.theme.appearance = theme.appearance
+  }
+  const zoneColors = patch.zones.colors
   for (const key of ['workspace', 'addFolder', 'sessions', 'accent']) {
     if (validColor(colors[key])) zoneColors[key] = colors[key]
   }
-  const zoneLabels = (patch.zones as any).labels
+  const zoneLabels = patch.zones.labels
   for (const key of ['addFolder', 'sessions']) {
     if (typeof labels[key] === 'string') zoneLabels[key] = labels[key].slice(0, 80)
   }
-  if (validColor(themeColors.ground)) (patch.theme as any).colors.ground = themeColors.ground
+  if (validColor(themeColors.ground)) patch.theme.colors.ground = themeColors.ground
+  const lightColors = isRecord(theme.lightColors) ? theme.lightColors : {}
+  if (validColor(lightColors.ground)) patch.theme.light = { colors: { ground: lightColors.ground } }
   if (['selective', 'mono', 'blackgold', 'none'].includes(String(theme.imagePreset))) {
-    ;(patch.theme as any).imagePreset = theme.imagePreset
+    patch.theme.imagePreset = theme.imagePreset
   }
   return patch
 }
 
 /** Build the theme and three-zone script from the shell's desktop-settings.json. */
-function dynamicPrototypeScript(): { source: string, settingsPath: string } {
+function dynamicPrototypeScript(): { source: string; settingsPath: string } {
   const modules = loadUiModules()
   const uiRoot = join(app.getAppPath(), 'resources', 'ui')
   const settings = readUiSettings()
@@ -403,7 +453,7 @@ async function installPrototypeUi(window: BrowserWindow): Promise<void> {
   try {
     const { source: zones, settingsPath } = dynamicPrototypeScript()
     const titlebar = await readFile(join(app.getAppPath(), 'resources', 'ui-titlebar.js'), 'utf8')
-    console.log(`desktop prototype ui: settings=${settingsPath ?? 'defaults'}`)
+    console.log(`desktop prototype ui: settings=${settingsPath}`)
     if (!window.isDestroyed()) await window.webContents.executeJavaScript(`${zones}\n${titlebar}`, true)
   } catch (error) {
     console.error(`desktop prototype ui: ${error instanceof Error ? error.message : String(error)}`)
@@ -418,7 +468,9 @@ async function installPrototypeUi(window: BrowserWindow): Promise<void> {
 
 function createWindow(preload: string, show = false, primary = false): BrowserWindow {
   const linuxPrototype = process.platform === 'linux' && primary
-  if (linuxPrototype) nativeTheme.themeSource = 'dark'
+  const appearance = linuxPrototype ? resolveAppearance(readUiSettings().theme) : 'system'
+  const chrome = appearanceChrome(appearance)
+  if (linuxPrototype) nativeTheme.themeSource = appearance
   const window = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -426,14 +478,15 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
     minHeight: 600,
     show,
     ...(process.platform === 'win32' && primary ? {
+      backgroundColor: chromeFallbackFill(),
       titleBarStyle: 'hidden' as const,
       titleBarOverlay: { height: WINDOWS_TITLEBAR_HEIGHT, color: chromeFallbackFill(),
         symbolColor: nativeTheme.shouldUseDarkColors ? '#f9fafb' : '#0f1115' },
     } : {}),
     ...(linuxPrototype ? {
-      backgroundColor: '#0B1013',
+      backgroundColor: chrome.color,
       titleBarStyle: 'hidden' as const,
-      titleBarOverlay: { height: 40, color: '#0B1013', symbolColor: '#E7E9EF' },
+      titleBarOverlay: { height: 40, color: chrome.color, symbolColor: chrome.symbol },
       autoHideMenuBar: true,
     } : {}),
     // hiddenInset places traffic lights inside the sidebar; sidebar vibrancy
@@ -479,6 +532,13 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
     // Reloads and navigations re-register the preload listener; resend the
     // current state so a fullscreen reload does not fall back to windowed CSS.
     window.webContents.on('did-finish-load', sendFullscreen)
+  }
+  if (process.platform === 'win32' && primary) {
+    const updateBackground = (): void => {
+      if (!window.isDestroyed()) window.setBackgroundColor(chromeFallbackFill())
+    }
+    nativeTheme.on('updated', updateBackground)
+    window.once('closed', () => { nativeTheme.removeListener('updated', updateBackground) })
   }
   if (process.platform === 'darwin') {
     // Deminiaturize reattaches the NSVisualEffectView material late
@@ -684,6 +744,7 @@ async function main(): Promise<void> {
       uiSettingsWindow.focus()
       return
     }
+    const chrome = appearanceChrome(resolveAppearance(readUiSettings().theme))
     const window = new BrowserWindow({
       width: 680,
       height: 760,
@@ -692,9 +753,9 @@ async function main(): Promise<void> {
       maximizable: false,
       show: false,
       title: '界面设置',
-      backgroundColor: '#0B1013',
+      backgroundColor: chrome.color,
       titleBarStyle: 'hidden',
-      titleBarOverlay: { color: '#0B1013', symbolColor: '#FCFAF2', height: 40 },
+      titleBarOverlay: { color: chrome.color, symbolColor: chrome.symbol, height: 40 },
       autoHideMenuBar: true,
       webPreferences: {
         preload: fileURLToPath(new URL('./preload-ui-settings.cjs', import.meta.url)),
@@ -728,6 +789,15 @@ async function main(): Promise<void> {
     assertSettingsSender(event)
     const settingsPath = resolveUiSettingsPath()
     writeUiSettings(validateUiPatch(patch))
+    // The native appearance must follow the saved choice before the page reloads,
+    // otherwise a light/dark switch would reload into the old system palette.
+    const appearance = resolveAppearance(readUiSettings().theme)
+    nativeTheme.themeSource = appearance
+    const chrome = appearanceChrome(appearance)
+    if (uiSettingsWindow !== undefined && !uiSettingsWindow.isDestroyed()) {
+      uiSettingsWindow.setBackgroundColor(chrome.color)
+      uiSettingsWindow.setTitleBarOverlay({ color: chrome.color, symbolColor: chrome.symbol, height: 40 })
+    }
     if (mainWindow !== undefined && !mainWindow.isDestroyed()) mainWindow.webContents.reload()
     return { ok: true, settingsPath }
   })
@@ -1012,7 +1082,7 @@ async function main(): Promise<void> {
     // A confirmation on a hidden window would go unseen, so it waits for the next show; the mandatory
     // flow keeps its own taskbar and Dock attention instead.
     if (!isMandatory()) await windowShown()
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- A quit can begin while the show is awaited.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- A quit can begin while the install is awaited.
     if (quitting) return state
     return updates.install(version, revision)
   }
@@ -1108,12 +1178,26 @@ async function main(): Promise<void> {
   ipcMain.handle(PLATFORM_IPC.close, (event) => { assertMainApplication(event); platformView.close() })
   // Only the main window may synchronize its palette with the native material.
   ipcMain.on(DESKTOP_IPC.nativeThemeSet, (event, source: unknown) => {
-    if (mainWindow === undefined || event.sender !== mainWindow.webContents) return
-    if (source === 'light' || source === 'dark' || source === 'system') {
-      // Linux UI prototype: keep the official web theme dark even when the wrapped app publishes light.
-      nativeTheme.themeSource = process.platform === 'linux' ? 'dark' : source
-    }
+    if (mainWindow === undefined || event.sender !== mainWindow.webContents
+      || event.senderFrame !== mainWindow.webContents.mainFrame
+      || !event.senderFrame.url.startsWith(`${SCHEME}://app/`)) return
+    if (source !== 'light' && source !== 'dark' && source !== 'system') return
+    const configured = resolveAppearance(readUiSettings().theme)
+    nativeTheme.themeSource = configured === 'system' ? source : configured
   })
+  const shellWindowOf = (event: { sender: Electron.WebContents }): BrowserWindow | null => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    return window === null || window.isDestroyed() ? null : window
+  }
+  ipcMain.handle(DESKTOP_IPC.windowMinimize, (event) => { shellWindowOf(event)?.minimize() })
+  ipcMain.handle(DESKTOP_IPC.windowToggleMaximize, (event): boolean => {
+    const window = shellWindowOf(event)
+    if (window === null) return false
+    if (window.isMaximized()) window.unmaximize()
+    else window.maximize()
+    return window.isMaximized()
+  })
+  ipcMain.handle(DESKTOP_IPC.windowClose, (event) => { shellWindowOf(event)?.close() })
   ipcMain.handle(DESKTOP_IPC.localeBootstrap, async (event) => {
     if (event.sender !== mainWindow?.webContents || event.senderFrame !== mainWindow.webContents.mainFrame
       || new URL(event.senderFrame.url).origin !== new URL(applicationUrl).origin) {
@@ -1240,6 +1324,21 @@ async function main(): Promise<void> {
     }
     if (authenticationOperation !== undefined) {
       policyAuth?.focus(); updateDialog.focus()
+    }
+    if (!isMandatory() && (updates.state.phase === 'downloading' || updates.state.phase === 'verifying')) {
+      if (updateDialog.isOpen) {
+        updateDialog.focus()
+        return Promise.resolve()
+      }
+      const options = { type: 'info' as const, title: locale.messages.updateCheckTitle,
+        message: updates.state.phase === 'downloading' ? locale.messages.updateDownloadInProgress : locale.messages.updateVerifying,
+        detail: updates.state.phase === 'downloading' ? locale.messages.updateDownloadDetail : '', buttons: [locale.messages.updateClose], cancelId: 0,
+      }
+      return ordinaryMessageBox(options).then(() => {}).catch(async (error: unknown) => {
+        console.error(error)
+        try { await dialog.showMessageBox(options) }
+        catch (nativeError) { console.error(nativeError) }
+      })
     }
     let failedOperation: 'check' | 'download' | 'install' = 'check'
     promptOperation ??= Promise.resolve().then(async () => {
@@ -1383,8 +1482,31 @@ async function main(): Promise<void> {
   // its standard menus and application hide commands declared explicitly.
   // Keep app.name stable: Electron derives its default userData directory from it.
   const darwin = process.platform === 'darwin'
+  // A copy of Electron 44's macOS Edit menu that binds Paste and Match Style to Shift+Command+V
+  // (#7782) and keeps Electron's Option+Shift+Command+V as a hidden alias.
+  const macEditMenu = (messages: DesktopMessages): MenuItemConstructorOptions => ({ role: 'editMenu', submenu: [
+    { role: 'undo' },
+    { role: 'redo' },
+    { type: 'separator' },
+    { role: 'cut' },
+    { role: 'copy' },
+    { role: 'paste' },
+    { role: 'pasteAndMatchStyle', accelerator: 'Shift+Command+V' },
+    { role: 'pasteAndMatchStyle', accelerator: 'Option+Shift+Command+V', visible: false, acceleratorWorksWhenHidden: true },
+    { role: 'delete' },
+    { role: 'selectAll' },
+    { type: 'separator' },
+    { label: messages.substitutionsMenu, submenu: [
+      { role: 'showSubstitutions' },
+      { type: 'separator' },
+      { role: 'toggleSmartQuotes' },
+      { role: 'toggleSmartDashes' },
+      { role: 'toggleTextReplacement' },
+    ] },
+    { label: messages.speechMenu, submenu: [{ role: 'startSpeaking' }, { role: 'stopSpeaking' }] },
+  ] })
   const platformMenus = (): MenuItemConstructorOptions[] => darwin
-    ? [shortcuts.fileMenu(currentDesktopLocale().messages), { role: 'editMenu' }, { role: 'windowMenu' }]
+    ? [shortcuts.fileMenu(currentDesktopLocale().messages), macEditMenu(currentDesktopLocale().messages), { role: 'windowMenu' }]
     : [{ role: 'editMenu' }]
   const hideCommands: MenuItemConstructorOptions[] = darwin
     ? [{ role: 'hide', label: currentDesktopLocale().messages.hideApplication },
@@ -1566,6 +1688,7 @@ async function main(): Promise<void> {
     const window = mainWindow ?? createMainWindow()
     await navigateMain(applicationUrl)
     if (isQuitting() || recovery.active || window.isDestroyed()) return
+    if (process.platform === 'win32') window.setBackgroundColor(chromeFallbackFill())
     if (activate) window.show()
     else window.showInactive()
     enteredWorkspace = true
@@ -1649,6 +1772,7 @@ async function main(): Promise<void> {
     if (quitting || recovery.active) return
     const state = await readWelcomeState()
     if (isQuitting() || backend.state.phase !== 'ready') return
+    nativeTheme.themeSource = state.themePreference
     locale = resolveDesktopStartupLocale(state.localePreference, systemLanguages)
     writeDesktopLocaleCache(app.getPath('userData'), locale.id)
     windowsLanguage = locale.id

@@ -1,7 +1,7 @@
 'use strict'
 
 const $ = (id) => document.getElementById(id)
-const colorIds = ['color-workspace', 'color-add', 'color-sessions', 'color-accent', 'color-ground']
+const colorIds = ['color-workspace', 'color-add', 'color-sessions', 'color-accent', 'color-ground', 'color-light-ground']
 
 function fill(data) {
   const colors = data?.zones?.colors || {}
@@ -10,6 +10,10 @@ function fill(data) {
   $('color-sessions').value = colors.sessions || '#86A697'
   $('color-accent').value = colors.accent || '#CB1B45'
   $('color-ground').value = data?.theme?.colors?.ground || '#0B1013'
+  $('color-light-ground').value = data?.theme?.lightColors?.ground || '#F6F4EF'
+  const appearance = data?.theme?.appearance || 'light'
+  $('appearance').value = appearance
+  applyAppearance(appearance)
   $('label-add').value = data?.zones?.labels?.addFolder || ''
   $('label-sessions').value = data?.zones?.labels?.sessions || ''
   $('image-preset').value = data?.theme?.imagePreset || 'selective'
@@ -44,7 +48,9 @@ async function save() {
         },
       },
       theme: {
+        appearance: $('appearance').value,
         colors: { ground: $('color-ground').value },
+        lightColors: { ground: $('color-light-ground').value },
         imagePreset: $('image-preset').value,
       },
     }
@@ -60,6 +66,13 @@ async function save() {
   }
 }
 
+/** Mirror the selected appearance onto this window so the preview matches the app. */
+function applyAppearance(value) {
+  const dark = value === 'dark' || (value === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+  document.body.classList.toggle('light', !dark)
+}
+
+$('appearance').addEventListener('change', () => { applyAppearance($('appearance').value) })
 $('save').addEventListener('click', () => { void save() })
 $('close').addEventListener('click', () => { void window.dshUiSettings.close() })
 for (const id of colorIds) $(id).addEventListener('input', () => { $('status').textContent = '' })

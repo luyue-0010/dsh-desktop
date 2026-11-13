@@ -44,12 +44,14 @@ const DEFAULT_SETTINGS = {
     /** Accent the workspace / session rows to match their zone color. */
     rowAccents: true,
   },
-  /** Dark appearance layer: background artwork, gradient, and frosted glass. */
+  /** Appearance layer: background artwork, gradient, and frosted glass. */
   theme: {
-    /** Master switch for the dark layer; the app then keeps its stock dark UI. */
+    /** Master switch for the appearance layer; off keeps the app's stock UI. */
     enabled: true,
-    /** Ask the OS layer for a dark appearance, so the app's own dark theme applies. */
-    forceDark: true,
+    /** `light`, `dark`, or `system`: which palette the shell and the wrapped app start in. */
+    appearance: 'light',
+    /** Kept for older settings files; the appearance above is the authority. */
+    forceDark: false,
     /** Background image; empty uses the bundled `assets/background.jpg`. */
     image: '',
     /** Which derived artwork to use: `selective` keeps only the hair's blue and
@@ -79,6 +81,29 @@ const DEFAULT_SETTINGS = {
       text: '#FCFAF2',
       /** 紅 — the selection accent. */
       accent: '#CB1B45',
+    },
+    /** Light appearance: warm paper ground, ink text, a heavy white wash over the artwork. */
+    light: {
+      /** Sheet ground; the sidebar sits a touch lighter. */
+      colors: {
+        ground: '#F6F4EF',
+        text: '#1C1C1E',
+        accent: '#CB1B45',
+      },
+      /** Share of the artwork left visible after the white wash. */
+      imageOpacity: 0.34,
+      /** White wash down the conversation column, as `[percent, opacity]`. */
+      fadeStops: [
+        [0, 0.18],
+        [45, 0.62],
+        [72, 0.86],
+        [100, 0.97],
+      ],
+      glass: {
+        blur: 20,
+        saturation: 1.1,
+        opacity: 0.62,
+      },
     },
   },
   /** Window geometry, persisted on resize/move. */
