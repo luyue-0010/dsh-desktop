@@ -7,6 +7,12 @@
   background: var(--dsw-alias-bg-base);
 }
 
+/* The Linux shell draws a fixed 40px titlebar above app content; keep the
+   Platform return bar and native view below it. */
+:global(html[data-dsh-desktop-titlebar]) .overlay {
+  padding-top: var(--dsh-titlebar-height, 40px);
+}
+
 /* Windows Electron: the Desktop caption menu owns the window's top strip, so
    the return bar and the native Platform view start below it. */
 :global([data-windows-titlebar]) .overlay {

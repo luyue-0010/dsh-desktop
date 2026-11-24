@@ -1,5 +1,5 @@
 {
-  "forkVersion": "0.4.1-linux",
-  "upstreamVersion": "0.2.2-rc.2",
-  "upstreamCommit": "ddac96760b6edf8fa0fe17cbdcf0b512f4c12b2c"
+  "forkVersion": "0.4.2-linux",
+  "upstreamVersion": "0.2.3-alpha.2",
+  "upstreamCommit": "4b399c39a6d1479cd84ca591b4d7c88e24d38a96"
 }

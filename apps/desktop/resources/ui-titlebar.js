@@ -44,6 +44,7 @@
   if (!document.body) return;
 
   const opts = globalThis.__DSH_TITLEBAR_OPTIONS__ || {};
+  document.documentElement.setAttribute('data-dsh-desktop-titlebar', '');
   const isApp = opts.mode === 'app';
   const platform = opts.platform || 'linux';
   const isMac = platform === 'darwin';
